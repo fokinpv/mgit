@@ -1,14 +1,16 @@
-import Control.Monad (filterM, liftM)
+import Control.Monad (filterM, liftM, mapM)
 import Data.List (intercalate)
 import System.Directory (listDirectory, getCurrentDirectory, makeAbsolute)
 import System.Environment (getArgs)
 import System.IO
-import System.Posix.Files (getFileStatus, isDirectory)
+import System.Posix.Files (getFileStatus, isDirectory, isSymbolicLink)
 import System.Process (createProcess, waitForProcess, shell)
 import System.Exit (ExitCode(..))
 
 
-main = getArgs >>= findRepos . head >>= runGitCommand
+main = do
+    args <- getArgs
+    getCurrentDirectory >>= findRepos >>= runCommands args
 
 findRepos :: FilePath -> IO [FilePath]
 findRepos path =
@@ -26,7 +28,7 @@ excludeBadPaths paths = filterM isValid paths
         isValid :: FilePath -> IO Bool
         isValid path = do
             status <- getFileStatus path
-            return $ isDirectory status
+            return $ isDirectory status && not (isSymbolicLink status)
 
 isGit :: FilePath -> IO Bool
 isGit path = do
@@ -35,9 +37,9 @@ isGit path = do
        then return $ True
        else return $ False
 
-runGitCommand :: [FilePath] -> IO ()
-runGitCommand gitRepos = do
-    (_, out, err, ph) <- createProcess $ shell $ cmd gitRepos
+runGitCommand :: (String, FilePath) -> IO ()
+runGitCommand (command, gitRepo) = do
+    (_, out, err, ph) <- createProcess $ shell $ cmd gitRepo
     exit <- waitForProcess ph
     case exit of
         ExitSuccess -> do
@@ -48,5 +50,11 @@ runGitCommand gitRepos = do
                 Nothing -> print out
         ExitFailure code -> do print code
     where
-        cmd :: [FilePath] -> String
-        cmd repos = unwords ["ls", head repos]
+        cmd :: FilePath -> String
+        cmd repo = unwords [
+                "git", "-c", "color.ui=always", "-C", repo, command
+            ]
+
+runCommands :: [String] -> [FilePath] -> IO ()
+runCommands args repos = sequence_ $ fmap runGitCommand cmdrepoPairs
+    where cmdrepoPairs = [(unwords args, repo) | repo <- repos]

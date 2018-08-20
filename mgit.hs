@@ -1,6 +1,6 @@
 import Control.Monad (filterM, liftM, mapM)
 import Data.List (intercalate)
-import System.Directory (listDirectory, getCurrentDirectory, makeAbsolute)
+import System.Directory (listDirectory, getCurrentDirectory, makeAbsolute, getPermissions, readable)
 import System.Environment (getArgs)
 import System.IO
 import System.Posix.Files (getFileStatus, isDirectory, isSymbolicLink)
@@ -28,7 +28,8 @@ excludeBadPaths paths = filterM isValid paths
         isValid :: FilePath -> IO Bool
         isValid path = do
             status <- getFileStatus path
-            return $ isDirectory status && not (isSymbolicLink status)
+            permissions <- getPermissions path
+            return $ isDirectory status && not (isSymbolicLink status) && readable permissions
 
 isGit :: FilePath -> IO Bool
 isGit path = do

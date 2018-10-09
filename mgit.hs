@@ -10,7 +10,8 @@ import System.Directory
 import System.Environment (getArgs)
 import System.IO
 import System.Posix.Files (getFileStatus, isDirectory, isSymbolicLink)
-import System.Process (createProcess, waitForProcess, shell)
+-- import System.Process (createProcess, waitForProcess, shell, StdStream, std_in)
+import System.Process
 import System.Exit (ExitCode(..))
 
 
@@ -49,16 +50,16 @@ isGit path = do
 
 runGitCommand :: (String, FilePath) -> IO ()
 runGitCommand (command, gitRepo) = do
-    (_, out, err, ph) <- createProcess $ shell $ cmd gitRepo
+    -- (_, Just out, _, ph) <- createProcess (shell $ cmd gitRepo) { std_out = CreatePipe}
+    (_, out, _, ph) <- createProcess $ shell $ cmd gitRepo
     exit <- waitForProcess ph
     case exit of
+        -- ExitSuccess -> hGetContents out >>= print
         ExitSuccess -> do
             case out of
-                Just hout -> do
-                    output <- hGetContents hout
-                    print output
-                Nothing -> print out
-        ExitFailure code -> do print code
+                Just hout -> hGetContents hout >>= print
+                Nothing -> return ()
+        ExitFailure code -> print code
     where
         cmd :: FilePath -> String
         cmd repo = unwords [

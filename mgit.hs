@@ -22,11 +22,11 @@ runGitCommand (command, gitRepo) = do
             case out of
                 Just hout -> hGetContents hout >>= print
                 Nothing -> return ()
-        ExitFailure code -> print code
+        ExitFailure code -> return ()
     where
         cmd :: FilePath -> String
         cmd repo = unwords [
-                "git", "-c", "color.ui=always", "-C", repo, command
+                "git", "-c", "core.pager=''", "-C", repo, command
             ]
 
 runCommands :: [String] -> [FilePath] -> IO ()

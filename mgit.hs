@@ -64,4 +64,6 @@ findRepos path =
 
 main = do
     args <- getArgs
-    getCurrentDirectory >>= findRepos >>= runCommands args
+    if "count" `elem` args
+       then getCurrentDirectory >>= findRepos >>= print . length
+       else getCurrentDirectory >>= findRepos >>= runCommands args

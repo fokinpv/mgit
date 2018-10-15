@@ -1,5 +1,6 @@
-import Control.Monad (filterM, liftM, mapM)
-import Data.List (intercalate)
+import Control.Monad (filterM, liftM, liftM2, mapM, forM, foldM)
+import Data.List (partition)
+import Data.Monoid ((<>))
 import System.Directory
     ( listDirectory
     , getCurrentDirectory
@@ -55,6 +56,9 @@ isGit path = do
        then return $ True
        else return $ False
 
+isNotGit :: FilePath -> IO Bool
+isNotGit path = fmap not (isGit path)
+
 findRepos :: FilePath -> IO [FilePath]
 findRepos path =
     listDirectory path
@@ -62,8 +66,31 @@ findRepos path =
     >>= excludeBadPaths
     >>= filterM isGit
 
+findRepos' :: FilePath -> IO [FilePath]
+findRepos' path = do
+    print $ "path= " <> path
+    paths <- listDirectory path >>= appendPath path >>= excludeBadPaths
+    putStr "paths= "
+    print paths
+    gitPaths <- filterM isGit paths
+    a <- filterM isNotGit paths >>= mapM findRepos'
+    putStr "a= "
+    print a
+    print $ null a
+    return $ gitPaths <> liftM (foldl (<>) []) a
+    -- if paths == []
+    --    then return []
+    --    else do
+    --         gitPaths <- filterM isGit paths
+    --         a <- filterM isNotGit paths >>= mapM findRepos'
+    --         putStr "a= "
+    --         print a
+    --         return $ gitPaths <> liftM (foldl (<>) []) a
+
 main = do
     args <- getArgs
-    if "count" `elem` args
-       then getCurrentDirectory >>= findRepos >>= print . length
-       else getCurrentDirectory >>= findRepos >>= runCommands args
+    -- getCurrentDirectory >>= findRepos' >>= print
+    getCurrentDirectory >>= findRepos' >>= print . length
+    -- if "count" `elem` args
+    --    then getCurrentDirectory >>= findRepos >>= print . length
+    --    else getCurrentDirectory >>= findRepos >>= runCommands args
